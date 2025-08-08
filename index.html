@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <title>ブラウンノイズ</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="theme-color" content="#f6f7f8" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)">
+    <style>
+        :root {
+            color-scheme: light dark;
+            /* Colors (light) */
+            --bg: #f6f7f8;
+            --card: #ffffff;
+            --text: #111827;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --accent: #0ea5a0;
+            --accent-press: #0a857f;
+            --focus: #22d3ee;
+            /* Radii, spacing, shadow */
+            --radius: 12px;
+            --space: 20px;
+            --shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+            --transition: 180ms ease;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0b1220;
+                --card: #0f172a;
+                --text: #e5e7eb;
+                --muted: #94a3b8;
+                --border: #1f2937;
+                --accent: #2dd4bf;
+                --accent-press: #22c4af;
+                --focus: #22d3ee;
+                --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            padding: 24px;
+            display: grid;
+            place-items: center;
+            min-height: 100svh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .wrap {
+            width: 100%;
+            max-width: 460px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: calc(var(--space) + 4px);
+        }
+
+        h1 {
+            margin: 0 0 8px 0;
+            font-size: 1.5rem;
+            font-weight: 650;
+            letter-spacing: 0.01em;
+        }
+
+        .subtle {
+            color: var(--muted);
+            margin: 0 0 14px 0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            color: var(--text);
+            background: linear-gradient(180deg, rgba(14, 165, 160, 0.14), rgba(14, 165, 160, 0.10));
+            border: 1px solid rgba(14, 165, 160, 0.25);
+            margin-bottom: 12px;
+        }
+
+        .row {
+            margin: 16px 0;
+        }
+
+        button {
+            font-size: 1.05rem;
+            padding: 0.7rem 1.1rem;
+            border-radius: calc(var(--radius) - 2px);
+            border: 1px solid transparent;
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            cursor: pointer;
+            transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+        }
+
+        button:hover {
+            filter: brightness(1.02);
+        }
+
+        button:active {
+            background: var(--accent-press);
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        label {
+            display: block;
+            font-weight: 550;
+            margin-bottom: 8px;
+        }
+
+        #volLabel {
+            color: var(--muted);
+            font-weight: 500;
+            margin-left: 6px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 28px;
+            background: transparent;
+        }
+
+        /* WebKit */
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 6px;
+            background: var(--border);
+            border-radius: 999px;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -6px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--card);
+            border: 2px solid var(--accent);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
+            transition: border-color var(--transition), transform var(--transition);
+        }
+
+        input[type="range"]:active::-webkit-slider-thumb {
+            transform: scale(0.98);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:focus {
+            outline: none;
+        }
+
+        /* Firefox */
+        input[type="range"]::-moz-range-track {
+            height: 6px;
+            background: var(--border);
+            border-radius: 999px;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--card);
+            border: 2px solid var(--accent);
+        }
+
+        small,
+        .hint {
+            color: var(--muted);
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--focus);
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+                animation: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="wrap" aria-labelledby="app-title">
+        <h1 id="app-title">ブラウンノイズ</h1>
+        <p class="badge" aria-hidden="true">小音量から再生を開始してください</p>
+        <p class="subtle">低域成分が強い落ち着いたノイズです。作業や睡眠時の環境音としてどうぞ。</p>
+
+        <div class="row">
+            <button id="toggle" aria-pressed="false" aria-label="再生/停止">再生</button>
+        </div>
+
+        <div class="row">
+            <label for="volume">音量 <span id="volLabel">20%</span></label>
+            <input id="volume" type="range" min="0" max="100" value="20" step="1" aria-valuemin="0" aria-valuemax="100"
+                aria-valuenow="20" aria-label="音量">
+            <div class="hint">フェードで滑らかに変化します</div>
+        </div>
+
+        <div class="row">
+            <small id="status" role="status" aria-live="polite">準備中… ボタンを押すと開始します。</small>
+        </div>
+    </main>
+
+    <script>
+        // シンプルなブラウンノイズ生成ページ（モダンUI）
+        // WebAudio AudioWorklet を使い、Blob経由で同一ファイル内に実装
+        const STORAGE_KEY = 'brown-noise-volume';
+        const DEFAULT_VOL = 20;
+
+        const ui = {
+            btn: document.getElementById('toggle'),
+            vol: document.getElementById('volume'),
+            volLabel: document.getElementById('volLabel'),
+            status: document.getElementById('status')
+        };
+
+        const audio = {
+            ctx: null,
+            gain: null,
+            noise: null,
+            ready: false,
+            playing: false
+        };
+
+        // 音量（0..1）に変換
+        function volValue() {
+            return Math.pow(parseFloat(ui.vol.value) / 100, 1.0);
+        }
+
+        function setVolLabel() {
+            const label = ui.vol.value + '%';
+            ui.volLabel.textContent = label;
+            ui.vol.setAttribute('aria-valuenow', ui.vol.value);
+        }
+
+        function setButtonState(isPlaying) {
+            ui.btn.textContent = isPlaying ? '停止' : '再生';
+            ui.btn.setAttribute('aria-pressed', String(isPlaying));
+        }
+
+        async function ensureAudio() {
+            if (audio.ready) return;
+
+            audio.ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+
+            // Worklet コード（Brownian noise）
+            const workletCode = `
+        class BrownNoiseProcessor extends AudioWorkletProcessor {
+          constructor() {
+            super();
+            this._lastOut = 0;
+          }
+          process(inputs, outputs, parameters) {
+            const output = outputs[0];
+            const ch0 = output[0];
+            for (let i = 0; i < ch0.length; i++) {
+              const white = Math.random() * 2 - 1;
+              this._lastOut = (this._lastOut + 0.02 * white) / 1.02;
+              ch0[i] = this._lastOut * 3.5;
+            }
+            for (let c = 1; c < output.length; c++) {
+              output[c].set(ch0);
+            }
+            return true;
+          }
+        }
+        registerProcessor('brown-noise-processor', BrownNoiseProcessor);
+      `;
+            const blob = new Blob([workletCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audio.ctx.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            audio.noise = new AudioWorkletNode(audio.ctx, 'brown-noise-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            audio.gain = audio.ctx.createGain();
+            audio.gain.gain.value = 0.0;
+
+            audio.noise.connect(audio.gain).connect(audio.ctx.destination);
+
+            audio.ready = true;
+            ui.status.textContent = '準備完了。再生ボタンを押してください。';
+        }
+
+        function rampGain(target, time = 0.18) {
+            const g = audio.gain.gain;
+            const now = audio.ctx.currentTime;
+            const t = Math.max(0.02, time);
+            g.cancelScheduledValues(now);
+            g.setTargetAtTime(g.value, now, 0.005);
+            g.linearRampToValueAtTime(target, now + t);
+        }
+
+        async function start() {
+            await ensureAudio();
+            await audio.ctx.resume();
+            rampGain(volValue(), 0.2);
+            audio.playing = true;
+            setButtonState(true);
+            ui.status.textContent = '再生中';
+        }
+
+        async function stop() {
+            if (!audio.ready) return;
+            rampGain(0.0, 0.2);
+            audio.playing = false;
+            setButtonState(false);
+            ui.status.textContent = '停止中';
+        }
+
+        async function togglePlay() {
+            if (!audio.playing) {
+                await start();
+            } else {
+                await stop();
+            }
+        }
+
+        // 初期音量の復元
+        (function initVolumeFromStorage() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                const num = saved != null ? parseInt(saved, 10) : NaN;
+                if (!Number.isNaN(num) && num >= 0 && num <= 100) {
+                    ui.vol.value = String(num);
+                } else {
+                    ui.vol.value = String(DEFAULT_VOL);
+                }
+            } catch (_) {
+                ui.vol.value = String(DEFAULT_VOL);
+            }
+            setVolLabel();
+        })();
+
+        // UI イベント
+        ui.btn.addEventListener('click', async () => {
+            try { await togglePlay(); } catch (e) {
+                console.error(e);
+                ui.status.textContent = 'エラーが発生しました。コンソールを確認してください。';
+            }
+        });
+
+        ui.vol.addEventListener('input', () => {
+            setVolLabel();
+            try { localStorage.setItem(STORAGE_KEY, String(ui.vol.value)); } catch (_) { }
+            if (audio.ready) {
+                rampGain(volValue(), 0.1);
+            }
+        });
+
+        // キーボードショートカット: Spaceで再生/停止、上下で音量±5
+        document.addEventListener('keydown', async (e) => {
+            const isRange = e.target instanceof HTMLInputElement && e.target.type === 'range';
+            try {
+                if (e.code === 'Space') {
+                    if (!isRange) e.preventDefault();
+                    await togglePlay();
+                } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const step = 5 * (e.key === 'ArrowUp' ? 1 : -1);
+                    const next = Math.max(0, Math.min(100, parseInt(ui.vol.value, 10) + step));
+                    ui.vol.value = String(next);
+                    setVolLabel();
+                    try { localStorage.setItem(STORAGE_KEY, String(next)); } catch (_) { }
+                    if (audio.ready) rampGain(volValue(), 0.1);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // 初期ステータス
+        ui.status.textContent = '準備中… ボタンを押すと開始します。';
+    </script>
+</body>
+
+</html>
