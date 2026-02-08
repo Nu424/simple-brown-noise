@@ -4,9 +4,20 @@
 <head>
     <meta charset="utf-8">
     <title>ブラウンノイズ</title>
+    <meta name="description" content="ワンクリックで心地よいブラウンノイズを再生する超シンプルなウェブツール。">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="theme-color" content="#f6f7f8" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)">
+    <meta property="og:title" content="ブラウンノイズ">
+    <meta property="og:description" content="ワンクリックで心地よいブラウンノイズを再生する超シンプルなウェブツール。">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="icon.png">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="ブラウンノイズ">
+    <meta name="twitter:description" content="ワンクリックで心地よいブラウンノイズを再生する超シンプルなウェブツール。">
+    <meta name="twitter:image" content="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
     <style>
         :root {
             color-scheme: light dark;
@@ -247,8 +258,10 @@
             gain: null,
             noise: null,
             ready: false,
-            playing: false
+            playing: false,
+            unlocked: false
         };
+        const MEDIA_ARTWORK = [{ src: 'icon.png', sizes: '512x512', type: 'image/png' }];
 
         // 音量（0..1）に変換
         function volValue() {
@@ -264,6 +277,45 @@
         function setButtonState(isPlaying) {
             ui.btn.textContent = isPlaying ? '停止' : '再生';
             ui.btn.setAttribute('aria-pressed', String(isPlaying));
+        }
+
+        function setMediaMetadata() {
+            if (!('mediaSession' in navigator)) return;
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: 'ブラウンノイズ',
+                artist: 'Simple Brown Noise',
+                album: 'Brown Noise',
+                artwork: MEDIA_ARTWORK
+            });
+        }
+
+        function updateMediaPlaybackState(isPlaying) {
+            if (!('mediaSession' in navigator)) return;
+            navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+        }
+
+        function setupMediaSession() {
+            if (!('mediaSession' in navigator)) return;
+            console.log('setupMediaSession');
+            setMediaMetadata();
+            try {
+                navigator.mediaSession.setActionHandler('play', async () => {
+                    if (!audio.unlocked) {
+                        ui.status.textContent = '画面の再生ボタンを一度押してください。';
+                        updateMediaPlaybackState(false);
+                        return;
+                    }
+                    if (!audio.playing) await start();
+                });
+                navigator.mediaSession.setActionHandler('pause', async () => {
+                    if (audio.playing) await stop();
+                });
+                navigator.mediaSession.setActionHandler('stop', async () => {
+                    if (audio.playing) await stop();
+                });
+            } catch (err) {
+                console.warn('Media Session action handler error', err);
+            }
         }
 
         async function ensureAudio() {
@@ -323,13 +375,30 @@
             g.linearRampToValueAtTime(target, now + t);
         }
 
+        async function resumeAudioContext() {
+            if (!audio.ctx) return false;
+            try {
+                await audio.ctx.resume();
+            } catch (err) {
+                console.warn('AudioContext resume failed', err);
+            }
+            audio.unlocked = audio.ctx.state === 'running';
+            return audio.unlocked;
+        }
+
         async function start() {
             await ensureAudio();
-            await audio.ctx.resume();
+            await resumeAudioContext();
+            if (!audio.unlocked) {
+                ui.status.textContent = '画面の再生ボタンを一度押してください。';
+                updateMediaPlaybackState(false);
+                return;
+            }
             rampGain(volValue(), 0.2);
             audio.playing = true;
             setButtonState(true);
             ui.status.textContent = '再生中';
+            updateMediaPlaybackState(true);
         }
 
         async function stop() {
@@ -338,6 +407,7 @@
             audio.playing = false;
             setButtonState(false);
             ui.status.textContent = '停止中';
+            updateMediaPlaybackState(false);
         }
 
         async function togglePlay() {
@@ -363,6 +433,8 @@
             }
             setVolLabel();
         })();
+
+        setupMediaSession();
 
         // UI イベント
         ui.btn.addEventListener('click', async () => {
